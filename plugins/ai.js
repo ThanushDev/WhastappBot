@@ -1,10 +1,7 @@
-const { generateContent } = require('@google/generative-ai');
-
-module.exports = async (conn, from, text) => {
-    if (text.startsWith('.ai ')) {
-        const prompt = text.slice(4);
-        await conn.sendMessage(from, { text: 'Digi Solutions AI සොයමින් පවතිනවා... 🔍' });
-        // මෙතැනට ඔයාගේ Gemini API Key එක දාන්න පුළුවන්
-        await conn.sendMessage(from, { text: `ඔයා ඇහුවේ: ${prompt}\n\n(AI පහසුකම දැනට සක්‍රීය වෙමින් පවතී)` });
+module.exports = async (conn, from, command, body) => {
+    if (command.startsWith('.ai ')) {
+        const prompt = body.slice(4);
+        await conn.sendMessage(from, { text: `🤖 *Digi Solutions AI*\n\nඔබගේ ප්‍රශ්නය: ${prompt}\n\nපිළිතුර සකසමින් පවතී...` });
+        // මෙතැනට Gemini API response එක පසුව එක් කළ හැක
     }
 };
