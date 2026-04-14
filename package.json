@@ -1,0 +1,16 @@
+{
+    "name": "digisolutions-md",
+    "version": "1.0.0",
+    "description": "WhatsApp Bot by Digi Solutions",
+    "main": "main.js",
+    "scripts": {
+        "start": "node main.js"
+    },
+    "dependencies": {
+        "@whiskeysockets/baileys": "6.7.19",
+        "pino": "^9.9.0",
+        "dotenv": "^16.4.5",
+        "fs-extra": "^11.3.1",
+        "qrcode-terminal": "^0.12.0"
+    }
+}
