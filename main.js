@@ -7,8 +7,12 @@ const {
 const P = require("pino");
 const config = require('./config');
 
-async function startBot() {
-    // Auth තොරතුරු සේව් වෙන්නේ මේ ෆෝල්ඩරයේයි
+// Plugins Import කිරීම
+const ai = require('./plugins/ai');
+const downloader = require('./plugins/downloader');
+const media = require('./plugins/media');
+
+async function startDigiBot() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
     const { version } = await fetchLatestBaileysVersion();
 
@@ -26,9 +30,9 @@ async function startBot() {
         const { connection, lastDisconnect } = update;
         if (connection === 'close') {
             const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
-            if (shouldReconnect) startBot();
+            if (shouldReconnect) startDigiBot();
         } else if (connection === 'open') {
-            console.log('✅ ' + config.BOT_NAME + ' සම්බන්ධ වුණා!');
+            console.log('✅ ' + config.BOT_NAME + ' සාර්ථකව සම්බන්ධ වුණා!');
         }
     });
 
@@ -37,20 +41,19 @@ async function startBot() {
         if (!msg.message || msg.key.fromMe) return;
 
         const from = msg.key.remoteJid;
-        const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
-        const isCmd = body.startsWith(config.PREFIX);
-        const command = isCmd ? body.slice(config.PREFIX.length).trim().split(' ')[0].toLowerCase() : "";
+        const body = (msg.message.conversation || msg.message.extendedTextMessage?.text || "").trim();
+        const command = body.toLowerCase();
 
-        // Menu Command එක
-        if (command === 'menu') {
-            const text = `👋 Hello! මම ${config.BOT_NAME}.\n\n*Digi Solutions* වෙතින් ඉදිරිපත් කරන සේවාවන් මෙන්න:\n1. .ai (AI Chat)\n2. .info (Bot Info)`;
-            await conn.sendMessage(from, { text: text });
+        // මූලික Menu එක
+        if (command === '.menu') {
+            await conn.sendMessage(from, { text: `👋 DigiSolutions-MD මෙනුපත\n\n.ai [ප්‍රශ්නය]\n.fb [ලින්ක්]\n.sticker (ඡායාරූපයට Reply කර එවන්න)` });
         }
 
-        if (command === 'info') {
-            await conn.sendMessage(from, { text: `මෙය Digi Solutions විසින් නිර්මාණය කරන ලද්දකි.` });
-        }
+        // Plugins ක්‍රියාත්මක කිරීම
+        await ai(conn, from, command, body);
+        await downloader(conn, from, command, body);
+        await media(conn, from, command, msg);
     });
 }
 
-startBot();
+startDigiBot();
