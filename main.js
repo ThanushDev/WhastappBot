@@ -37,12 +37,11 @@ async function startDigiBot() {
     conn.ev.on('creds.update', saveCreds);
     loadPlugins();
 
-    conn.ev.on('connection.update', (update) => {
+    conn.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
 
-        // අර Warning එක වෙනුවට මෙතැනින් QR එක පෙන්වයි
         if (qr) {
-            console.log('--- DigiSolutions-MD: WhatsApp එකෙන් මේ QR එක Scan කරන්න ---');
+            console.log('--- DigiSolutions-MD: QR Code එක ස්කෑන් කරන්න ---');
             qrcode.generate(qr, { small: true });
         }
 
@@ -51,6 +50,25 @@ async function startDigiBot() {
             if (shouldReconnect) startDigiBot();
         } else if (connection === 'open') {
             console.log('✅ ' + config.BOT_NAME + ' සාර්ථකව සම්බන්ධ වුණා!');
+
+            // --- Session ID එක WhatsApp එකට එවීමේ කොටස ---
+            try {
+                const credsPath = path.join(__dirname, 'auth_info_baileys', 'creds.json');
+                if (fs.existsSync(credsPath)) {
+                    const credsData = fs.readFileSync(credsPath);
+                    const sessionId = Buffer.from(credsData).toString('base64');
+                    
+                    // තමාගේම අංකයට පණිවිඩය යැවීම
+                    const myJid = conn.user.id.split(':')[0] + '@s.whatsapp.net';
+                    await conn.sendMessage(myJid, { 
+                        text: `🚀 *DigiSolutions-MD Session ID* 🚀\n\nමෙන්න ඔයාගේ Session ID එක. මෙය කොපි කර Heroku/Render Config Vars වලට ඇතුළත් කරන්න.\n\n` + 
+                        `DigiSolutions;;${sessionId}` 
+                    });
+                    console.log('📬 Session ID එක ඔයාගේ WhatsApp එකට එව්වා!');
+                }
+            } catch (err) {
+                console.error('Session ID එවීමේදී දෝෂයක්:', err);
+            }
         }
     });
 
@@ -67,13 +85,13 @@ async function startDigiBot() {
             try {
                 await plugins[name](conn, from, command, body, msg);
             } catch (err) {
-                console.error(err);
+                console.error(`Error in ${name}:`, err);
             }
         }
 
         // Default Menu
-        if (command === '.menu') {
-            const menu = `👋 *Welcome to DigiSolutions-MD*\n\nPrefix: [ . ]\nOwner: Digi Solutions\n\n*Commands:*\n.ai, .sticker, .status, .calc, .tr, .news\n\nUse commands with prefix.`;
+        if (command === config.PREFIX + 'menu') {
+            const menu = `👋 *Welcome to DigiSolutions-MD*\n\nOwner: Digi Solutions\nPrefix: ${config.PREFIX}\n\n*Main Commands:*\n.ai, .sticker, .status, .calc, .tr, .news\n\nUse commands with prefix.`;
             await conn.sendMessage(from, { text: menu });
         }
     });
