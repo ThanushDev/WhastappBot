@@ -1,54 +1,47 @@
-const { default: makeWASocket, useMultiFileAuthState, jidDecode } = require("@whiskeysockets/baileys");
+const {
+    default: makeWASocket,
+    useMultiFileAuthState,
+    DisconnectReason,
+    fetchLatestBaileysVersion
+} = require("@whiskeysockets/baileys");
 const P = require("pino");
-const fs = require('fs');
-const path = require('path');
+const qrcode = require('qrcode-terminal'); // QR එක පෙන්වන්න මේක ඕනේ
 const config = require('./config');
-
-// Plugin Loader එක
-const plugins = {};
-const loadPlugins = () => {
-    const pluginPath = path.join(__dirname, 'plugins');
-    if (!fs.existsSync(pluginPath)) fs.mkdirSync(pluginPath);
-    fs.readdirSync(pluginPath).forEach(file => {
-        if (file.endsWith('.js')) {
-            plugins[file] = require(path.join(pluginPath, file));
-        }
-    });
-};
 
 async function startDigiBot() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
+    const { version } = await fetchLatestBaileysVersion();
+
     const conn = makeWASocket({
+        version,
         logger: P({ level: 'silent' }),
-        printQRInTerminal: true,
         auth: state,
-        browser: [config.BOT_NAME, "Safari", "3.0"]
+        // printQRInTerminal: true, <-- මේ පේළිය අයින් කළා (Deprecated warning එක එන්නේ මේක නිසා)
+        browser: [config.BOT_NAME, "Chrome", "1.0.0"]
     });
 
     conn.ev.on('creds.update', saveCreds);
-    loadPlugins();
 
-    conn.ev.on('messages.upsert', async m => {
-        const msg = m.messages[0];
-        if (!msg.message || msg.key.fromMe) return;
+    conn.ev.on('connection.update', (update) => {
+        const { connection, lastDisconnect, qr } = update;
 
-        const from = msg.key.remoteJid;
-        const body = (msg.message.conversation || msg.message.extendedTextMessage?.text || "").trim();
-        const command = body.toLowerCase();
+        // අලුත් ක්‍රමයට QR එක Terminal එකේ පෙන්වීම
+        if (qr) {
+            console.log('--- DigiSolutions-MD: QR Code එක ස්කෑන් කරන්න ---');
+            qrcode.generate(qr, { small: true });
+        }
 
-        // සියලුම Plugins එකවර ක්‍රියාත්මක කිරීම
-        for (let name in plugins) {
-            try {
-                await plugins[name](conn, from, command, body, msg);
-            } catch (err) {
-                console.error(`Plugin Error (${name}):`, err);
-            }
+        if (connection === 'close') {
+            const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
+            if (shouldReconnect) startDigiBot();
+        } else if (connection === 'open') {
+            console.log('✅ ' + config.BOT_NAME + ' සාර්ථකව සම්බන්ධ වුණා!');
         }
     });
 
-    conn.ev.on('connection.update', (up) => {
-        if (up.connection === 'open') console.log(`✅ ${config.BOT_NAME} සාර්ථකව සම්බන්ධ වුණා!`);
-        if (up.connection === 'close') startDigiBot();
+    // පණිවිඩ ලැබෙන තැන (Messages Upsert) කලින් දුන් පරිදිම තබන්න...
+    conn.ev.on('messages.upsert', async m => {
+        // (මෙහි කලින් තිබූ codes ඒ ආකාරයටම තබන්න)
     });
 }
 
