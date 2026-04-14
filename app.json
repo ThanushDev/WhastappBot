@@ -1,0 +1,13 @@
+{
+  "name": "DigiSolutions-MD",
+  "description": "WhatsApp Multi-Device Bot by Digi Solutions",
+  "logo": "https://i.ibb.co/tPsnkv2d/e20c71cfd1e0d222.jpg",
+  "keywords": ["digisolutions", "bot", "whatsapp"],
+  "env": {
+    "SESSION_ID": {
+      "description": "ඔයා ලබාගත් Session ID එක මෙතනට දාන්න.",
+      "required": true
+    }
+  },
+  "stack": "heroku-24"
+}
