@@ -7,7 +7,8 @@ const {
 const P = require("pino");
 const config = require('./config');
 
-async function startDigiBot() {
+async function startBot() {
+    // Auth තොරතුරු සේව් වෙන්නේ මේ ෆෝල්ඩරයේයි
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
     const { version } = await fetchLatestBaileysVersion();
 
@@ -25,9 +26,9 @@ async function startDigiBot() {
         const { connection, lastDisconnect } = update;
         if (connection === 'close') {
             const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
-            if (shouldReconnect) startDigiBot();
+            if (shouldReconnect) startBot();
         } else if (connection === 'open') {
-            console.log('✅ DigiSolutions-MD සාර්ථකව ක්‍රියාත්මකයි!');
+            console.log('✅ ' + config.BOT_NAME + ' සම්බන්ධ වුණා!');
         }
     });
 
@@ -37,19 +38,19 @@ async function startDigiBot() {
 
         const from = msg.key.remoteJid;
         const body = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
-        const command = body.toLowerCase();
+        const isCmd = body.startsWith(config.PREFIX);
+        const command = isCmd ? body.slice(config.PREFIX.length).trim().split(' ')[0].toLowerCase() : "";
 
-        // සරල Commands කිහිපයක්
+        // Menu Command එක
         if (command === 'menu') {
-            const menuText = `👋 Hello! මම DigiSolutions Bot.\n\nමෙන්න මගේ පහසුකම්:\n1. .ai [ප්‍රශ්නය]\n2. .fb [ලින්ක් එක]\n3. .sticker [ඡායාරූපය]`;
-            await conn.sendMessage(from, { text: menuText });
+            const text = `👋 Hello! මම ${config.BOT_NAME}.\n\n*Digi Solutions* වෙතින් ඉදිරිපත් කරන සේවාවන් මෙන්න:\n1. .ai (AI Chat)\n2. .info (Bot Info)`;
+            await conn.sendMessage(from, { text: text });
         }
-        
-        if (command.startsWith('.ai')) {
-             await conn.sendMessage(from, { text: 'මම මේ ගැන සොයා බලමින් සිටිනවා...' });
-             // මෙතැනට package.json හි ඇති @google/generative-ai සම්බන්ධ කළ හැක
+
+        if (command === 'info') {
+            await conn.sendMessage(from, { text: `මෙය Digi Solutions විසින් නිර්මාණය කරන ලද්දකි.` });
         }
     });
 }
 
-startDigiBot();
+startBot();
