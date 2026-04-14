@@ -5,8 +5,23 @@ const {
     fetchLatestBaileysVersion
 } = require("@whiskeysockets/baileys");
 const P = require("pino");
-const qrcode = require('qrcode-terminal'); // QR එක පෙන්වන්න මේක ඕනේ
+const qrcode = require('qrcode-terminal');
+const fs = require('fs');
+const path = require('path');
 const config = require('./config');
+
+// ප්ලගින් ලෝඩරය
+const plugins = {};
+const loadPlugins = () => {
+    const pluginPath = path.join(__dirname, 'plugins');
+    if (fs.existsSync(pluginPath)) {
+        fs.readdirSync(pluginPath).forEach(file => {
+            if (file.endsWith('.js')) {
+                plugins[file] = require(path.join(pluginPath, file));
+            }
+        });
+    }
+};
 
 async function startDigiBot() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
@@ -16,18 +31,18 @@ async function startDigiBot() {
         version,
         logger: P({ level: 'silent' }),
         auth: state,
-        // printQRInTerminal: true, <-- මේ පේළිය අයින් කළා (Deprecated warning එක එන්නේ මේක නිසා)
         browser: [config.BOT_NAME, "Chrome", "1.0.0"]
     });
 
     conn.ev.on('creds.update', saveCreds);
+    loadPlugins();
 
     conn.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect, qr } = update;
 
-        // අලුත් ක්‍රමයට QR එක Terminal එකේ පෙන්වීම
+        // අර Warning එක වෙනුවට මෙතැනින් QR එක පෙන්වයි
         if (qr) {
-            console.log('--- DigiSolutions-MD: QR Code එක ස්කෑන් කරන්න ---');
+            console.log('--- DigiSolutions-MD: WhatsApp එකෙන් මේ QR එක Scan කරන්න ---');
             qrcode.generate(qr, { small: true });
         }
 
@@ -39,9 +54,28 @@ async function startDigiBot() {
         }
     });
 
-    // පණිවිඩ ලැබෙන තැන (Messages Upsert) කලින් දුන් පරිදිම තබන්න...
     conn.ev.on('messages.upsert', async m => {
-        // (මෙහි කලින් තිබූ codes ඒ ආකාරයටම තබන්න)
+        const msg = m.messages[0];
+        if (!msg.message || msg.key.fromMe) return;
+
+        const from = msg.key.remoteJid;
+        const body = (msg.message.conversation || msg.message.extendedTextMessage?.text || "").trim();
+        const command = body.toLowerCase();
+
+        // ප්ලගින් ක්‍රියාත්මක කිරීම
+        for (let name in plugins) {
+            try {
+                await plugins[name](conn, from, command, body, msg);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Default Menu
+        if (command === '.menu') {
+            const menu = `👋 *Welcome to DigiSolutions-MD*\n\nPrefix: [ . ]\nOwner: Digi Solutions\n\n*Commands:*\n.ai, .sticker, .status, .calc, .tr, .news\n\nUse commands with prefix.`;
+            await conn.sendMessage(from, { text: menu });
+        }
     });
 }
 
